@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Camera
+{% endblock %}
+
+{% block main %}
+{% if message == 1 %}
+    <h3 style="text-align: center; font-family: 'Ubuntu', sans-serif;">Not clear</h3>
+{% endif %}
+<div style="text-align: center;">
+    <div style="position: relative; display: inline-block;">
+        <canvas id="canvas" width="720" height="480" style="max-width: 100%; height: auto;"></canvas>
+
+        <video id="player" style="max-width: 100%; height: auto;" autoplay></video>
+
+        <button id="capture" class="btn btn-primary" style="margin-top: 10px;" onclick="capture()">
+            Capture
+        </button>
+
+        <form action="/facesetup" method="post" enctype="multipart/form-data" style="margin-top: 10px;">
+            <input type="text" id="pic" name="pic" style="display: none;">
+            <button id="scan" class="btn btn-primary" style="display: none;">
+                Scan
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const player = document.getElementById('player');
+    const canvas = document.getElementById('canvas');
+    const captureButton = document.getElementById('capture');
+    const scan = document.getElementById('scan');
+    const img = document.getElementById('pic');
+
+    const vgaConstraints = {
+        video: { width: { ideal: 720 }, height: { ideal: 480 } },
+    };
+
+    function capture() {
+        canvas.width = player.videoWidth;
+        canvas.height = player.videoHeight;
+        const context = canvas.getContext('2d');
+        context.drawImage(player, 0, 0, canvas.width, canvas.height);
+        player.style.display = "none";
+        captureButton.style.display = "none";
+        scan.style.display = "block";
+
+        const cap = canvas.toDataURL('image/png').split(",")[1];
+        img.value = cap;
+    }
+
+    function stop() {
+        player.srcObject.getVideoTracks().forEach(track => track.stop());
+    }
+
+    navigator.mediaDevices.getUserMedia(vgaConstraints)
+        .then((stream) => {
+            player.srcObject = stream;
+        });
+</script>
+
+{% endblock %}

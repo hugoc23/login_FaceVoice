@@ -1,0 +1,200 @@
+{% extends "layout.html" %}
+
+{% block title %}
+index
+{% endblock %}
+{% block main %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Recorder</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #222;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin: 0 50px; /* Added margin of 50px on the left and right */
+    height: 100%;
+}
+
+
+
+        h1 {
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-top: 20px;
+            font-weight: bold;
+            color: rgb(74, 74, 74);
+        }
+
+        input {
+            width: 60%; /* Adjusted width to 60% */
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        h3 {
+            margin: 10px 0;
+            color: #555;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #0575E6;
+            color: white;
+            margin: 10px;
+            display: inline-block;
+        }
+
+        button:hover {
+            background-color:#0060c1;
+        }
+
+        .vector-icon {
+            width: 80px;
+            height: 80px;
+            margin: 20px 0;
+        }
+
+        #error-message {
+            color: red;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <br>
+        <h1>Autenticación por Voz</h1>
+        <br>
+        <label for="username">Nombre de usuario</label>
+        <input type="text" id="username" name="username" maxlength="20" style="width: 200px;" required>
+
+        
+
+        <h3>Presione el botón "Iniciar grabación"</h3>
+        <h3>Luego diga "Mi nombre es ...." y espere unos segundos.</h3>
+        <br>
+        <br>
+        <button id="startRecording" onclick="startRecording()">Iniciar grabación</button>
+        <button id="stopRecording" style="display:none;" onclick="stopRecording()">Detener grabación</button>
+        <button id="startSession" style="display:none;" onclick="startSession()">Iniciar Sesión</button>
+
+        <script>
+            let recorder;
+            let stopTimeout;
+    
+            function startRecording() {
+                // Restablecer el mensaje de error al iniciar una nueva grabación
+                document.getElementById('error-message').style.display = 'none';
+    
+                // Obtener el nombre de usuario desde el formulario
+                const username = document.getElementById('username').value;
+    
+                // Verificar la existencia del usuario antes de comenzar la grabación
+                fetch(`/checkUserExistence?username=${username}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.exists) {
+                            // El usuario existe, proceder con la lógica de grabación
+                            startRecordingLogic();
+                        } else {
+                            // Mostrar mensaje de error si el usuario no existe
+                            document.getElementById('error-message').style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error al verificar la existencia del usuario:', error);
+                    });
+            }
+    
+            function startRecordingLogic() {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        recorder = new MediaRecorder(stream);
+                        let audioChunks = [];
+    
+                        recorder.ondataavailable = function(e) {
+                            if (e.data.size > 0) {
+                                audioChunks.push(e.data);
+                            }
+                        };
+    
+                        recorder.onstop = function() {
+                            let audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                            let formData = new FormData();
+                            formData.append('audio', audioBlob, 'audio.wav');
+                            formData.append('username', document.getElementById('username').value);
+    
+                            // Enviar el archivo al servidor para iniciar sesión
+                            fetch('/compareAndStoreValidarVoice', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                // Mostrar el resultado de la comparación
+                                alert(data.message);
+                            })
+                            .catch(error => {
+                                console.error('Error al comparar y almacenar en validarvoice:', error);
+                            });
+                        };
+    
+                        recorder.start();
+                        document.getElementById('startRecording').style.display = 'none';
+                        document.getElementById('stopRecording').style.display = 'inline-block';
+                        document.getElementById('startSession').style.display = 'none';
+                        stopTimeout = setTimeout(stopRecording, 6000); // Detener la grabación después de 6 segundos
+                    })
+                    .catch(function(err) {
+                        console.error('Error al acceder al micrófono: ', err);
+                    });
+            }
+    
+            function stopRecording() {
+                recorder.stop();
+                document.getElementById('startRecording').style.display = 'inline-block';
+                document.getElementById('stopRecording').style.display = 'none';
+                document.getElementById('startSession').style.display = 'inline-block';
+            }
+    
+            function startSession() {
+                // Esta función se llama al hacer clic en "Iniciar Sesión" después de grabar
+            }
+        </script>
+
+        <p id="error-message">Usuario no existe. Por favor, regístrese antes de grabar el audio.</p>
+    </div>
+</body>
+</html>
+{% endblock %}
+
